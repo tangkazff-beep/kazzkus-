@@ -1,0 +1,256 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny all reads and writes by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- Validation Helpers ---
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             data.preferredLanguage is string && data.preferredLanguage.size() >= 1 && data.preferredLanguage.size() <= 30 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidConversation(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+             data.mode is string && data.mode in ['chat', 'analysis', 'code'] &&
+             data.language is string && data.language.size() >= 1 && data.language.size() <= 30 &&
+             data.previewText is string && data.previewText.size() <= 400 &&
+             data.messageCount is int && data.messageCount >= 0 && data.messageCount <= 10000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidChatMessage(data, conversationId) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.conversationId is string && data.conversationId == conversationId &&
+             data.role is string && data.role in ['user', 'model'] &&
+             data.text is string && data.text.size() <= 32000 &&
+             (!('attachmentName' in data) || data.attachmentName == null || (data.attachmentName is string && data.attachmentName.size() <= 200)) &&
+             (!('attachmentType' in data) || data.attachmentType == null || (data.attachmentType is string && data.attachmentType.size() <= 60)) &&
+             (!('codeLanguage' in data) || data.codeLanguage == null || (data.codeLanguage is string && data.codeLanguage.size() <= 40)) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidCodingLesson(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 120 &&
+             data.programmingLanguage is string && data.programmingLanguage.size() >= 1 && data.programmingLanguage.size() <= 40 &&
+             data.difficulty is string && data.difficulty in ['Pemula', 'Menengah', 'Lanjutan'] &&
+             data.currentStepIndex is int && data.currentStepIndex >= 0 && data.currentStepIndex <= 20 &&
+             data.totalSteps is int && data.totalSteps >= 1 && data.totalSteps <= 20 &&
+             data.completedSteps is int && data.completedSteps >= 0 && data.completedSteps <= 20 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidLessonStep(data, lessonId) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.lessonId is string && data.lessonId == lessonId &&
+             data.stepIndex is int && data.stepIndex >= 0 && data.stepIndex <= 20 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+             data.explanation is string && data.explanation.size() >= 1 && data.explanation.size() <= 8000 &&
+             data.codeExample is string && data.codeExample.size() <= 8000 &&
+             data.challengePrompt is string && data.challengePrompt.size() >= 1 && data.challengePrompt.size() <= 2000 &&
+             data.hint is string && data.hint.size() <= 1000 &&
+             data.userAnswer is string && data.userAnswer.size() <= 8000 &&
+             data.aiFeedback is string && data.aiFeedback.size() <= 4000 &&
+             data.isCompleted is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCodeProject(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+             data.language is string && data.language.size() >= 1 && data.language.size() <= 40 &&
+             data.prompt is string && data.prompt.size() <= 2000 &&
+             data.code is string && data.code.size() <= 64000 &&
+             data.isWebPreviewable is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidGitHubBookmark(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 160 &&
+             data.description is string && data.description.size() <= 600 &&
+             data.language is string && data.language.size() <= 50 &&
+             data.stars is int && data.stars >= 0 && data.stars <= 10000000 &&
+             data.htmlUrl is string && data.htmlUrl.size() >= 1 && data.htmlUrl.size() <= 300 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'preferredLanguage', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'preferredLanguage', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isOwner(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'preferredLanguage', 'updatedAt']);
+
+      allow delete: if isOwner(userId);
+
+      // Conversations
+      match /conversations/{conversationId} {
+        allow get: if isOwner(userId) && isValidId(conversationId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(conversationId) &&
+                         incoming().keys().hasAll(['userId', 'title', 'mode', 'language', 'previewText', 'messageCount', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'title', 'mode', 'language', 'previewText', 'messageCount', 'createdAt', 'updatedAt']) &&
+                         isValidConversation(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(conversationId) &&
+                         isValidConversation(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'mode', 'language', 'previewText', 'messageCount', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(conversationId);
+
+        // Messages inside Conversation
+        match /messages/{messageId} {
+          allow get: if isOwner(userId) && isValidId(conversationId) && isValidId(messageId);
+          allow list: if isOwner(userId) && isValidId(conversationId);
+
+          allow create: if isOwner(userId) &&
+                           isValidId(conversationId) &&
+                           isValidId(messageId) &&
+                           incoming().keys().hasAll(['userId', 'conversationId', 'role', 'text', 'createdAt']) &&
+                           incoming().keys().hasOnly(['userId', 'conversationId', 'role', 'text', 'attachmentName', 'attachmentType', 'codeLanguage', 'createdAt']) &&
+                           isValidChatMessage(incoming(), conversationId) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/conversations/$(conversationId));
+
+          allow update: if false;
+          allow delete: if isOwner(userId) && isValidId(conversationId) && isValidId(messageId);
+        }
+      }
+
+      // Interactive Coding Lessons
+      match /lessons/{lessonId} {
+        allow get: if isOwner(userId) && isValidId(lessonId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(lessonId) &&
+                         incoming().keys().hasAll(['userId', 'topic', 'programmingLanguage', 'difficulty', 'currentStepIndex', 'totalSteps', 'completedSteps', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'topic', 'programmingLanguage', 'difficulty', 'currentStepIndex', 'totalSteps', 'completedSteps', 'createdAt', 'updatedAt']) &&
+                         isValidCodingLesson(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(lessonId) &&
+                         isValidCodingLesson(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['currentStepIndex', 'completedSteps', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(lessonId);
+
+        // Lesson Steps
+        match /steps/{stepId} {
+          allow get: if isOwner(userId) && isValidId(lessonId) && isValidId(stepId);
+          allow list: if isOwner(userId) && isValidId(lessonId);
+
+          allow create: if isOwner(userId) &&
+                           isValidId(lessonId) &&
+                           isValidId(stepId) &&
+                           incoming().keys().hasAll(['userId', 'lessonId', 'stepIndex', 'title', 'explanation', 'codeExample', 'challengePrompt', 'hint', 'userAnswer', 'aiFeedback', 'isCompleted', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'lessonId', 'stepIndex', 'title', 'explanation', 'codeExample', 'challengePrompt', 'hint', 'userAnswer', 'aiFeedback', 'isCompleted', 'createdAt', 'updatedAt']) &&
+                           isValidLessonStep(incoming(), lessonId) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/lessons/$(lessonId));
+
+          allow update: if isOwner(userId) &&
+                           isValidId(lessonId) &&
+                           isValidId(stepId) &&
+                           isValidLessonStep(incoming(), lessonId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().lessonId == existing().lessonId &&
+                           incoming().stepIndex == existing().stepIndex &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['userAnswer', 'aiFeedback', 'isCompleted', 'updatedAt']);
+
+          allow delete: if isOwner(userId) && isValidId(lessonId) && isValidId(stepId);
+        }
+      }
+
+      // Saved Web & Code Studio Projects
+      match /projects/{projectId} {
+        allow get: if isOwner(userId) && isValidId(projectId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(projectId) &&
+                         incoming().keys().hasAll(['userId', 'title', 'language', 'prompt', 'code', 'isWebPreviewable', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'title', 'language', 'prompt', 'code', 'isWebPreviewable', 'createdAt', 'updatedAt']) &&
+                         isValidCodeProject(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(projectId) &&
+                         isValidCodeProject(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'language', 'prompt', 'code', 'isWebPreviewable', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(projectId);
+      }
+
+      // GitHub Bookmarks
+      match /githubBookmarks/{bookmarkId} {
+        allow get: if isOwner(userId) && isValidId(bookmarkId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(bookmarkId) &&
+                         incoming().keys().hasAll(['userId', 'fullName', 'description', 'language', 'stars', 'htmlUrl', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'fullName', 'description', 'language', 'stars', 'htmlUrl', 'createdAt']) &&
+                         isValidGitHubBookmark(incoming());
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(bookmarkId);
+      }
+    }
+  }
+}

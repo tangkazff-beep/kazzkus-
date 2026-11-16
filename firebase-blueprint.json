@@ -1,0 +1,148 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile and AI preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "preferredLanguage": { "type": "string", "description": "Preferred AI response language." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "displayName", "preferredLanguage", "createdAt", "updatedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "AI chat, data analysis, or coding session.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "title": { "type": "string", "description": "Conversation title." },
+        "mode": { "type": "string", "enum": ["chat", "analysis", "code"], "description": "Assistant mode." },
+        "language": { "type": "string", "description": "Conversation target language." },
+        "previewText": { "type": "string", "description": "Latest message preview." },
+        "messageCount": { "type": "integer", "description": "Number of messages in conversation." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "title", "mode", "language", "previewText", "messageCount", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual message inside a conversation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "conversationId": { "type": "string", "description": "Parent conversation ID." },
+        "role": { "type": "string", "enum": ["user", "model"], "description": "Sender role." },
+        "text": { "type": "string", "description": "Message markdown content." },
+        "attachmentName": { "type": "string", "description": "Optional attached file or audio name." },
+        "attachmentType": { "type": "string", "description": "Optional attachment category (image, audio, file)." },
+        "codeLanguage": { "type": "string", "description": "Optional primary code block language." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." }
+      },
+      "required": ["userId", "conversationId", "role", "text", "createdAt"]
+    },
+    "CodingLesson": {
+      "title": "CodingLesson",
+      "description": "Interactive step-by-step programming curriculum.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "topic": { "type": "string", "description": "Lesson topic." },
+        "programmingLanguage": { "type": "string", "description": "Target programming language." },
+        "difficulty": { "type": "string", "enum": ["Pemula", "Menengah", "Lanjutan"], "description": "Lesson difficulty." },
+        "currentStepIndex": { "type": "integer", "description": "Active zero-based step index." },
+        "totalSteps": { "type": "integer", "description": "Total steps in lesson." },
+        "completedSteps": { "type": "integer", "description": "Number of completed steps." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "topic", "programmingLanguage", "difficulty", "currentStepIndex", "totalSteps", "completedSteps", "createdAt", "updatedAt"]
+    },
+    "LessonStep": {
+      "title": "LessonStep",
+      "description": "Single interactive step in a CodingLesson.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "lessonId": { "type": "string", "description": "Parent lesson ID." },
+        "stepIndex": { "type": "integer", "description": "Zero-based order index." },
+        "title": { "type": "string", "description": "Step title." },
+        "explanation": { "type": "string", "description": "Step concept explanation." },
+        "codeExample": { "type": "string", "description": "Reference code example." },
+        "challengePrompt": { "type": "string", "description": "Interactive coding task." },
+        "hint": { "type": "string", "description": "Helpful hint." },
+        "userAnswer": { "type": "string", "description": "User submitted code or answer." },
+        "aiFeedback": { "type": "string", "description": "AI evaluation feedback." },
+        "isCompleted": { "type": "boolean", "description": "Whether step challenge passed." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "lessonId", "stepIndex", "title", "explanation", "codeExample", "challengePrompt", "hint", "userAnswer", "aiFeedback", "isCompleted", "createdAt", "updatedAt"]
+    },
+    "CodeProject": {
+      "title": "CodeProject",
+      "description": "Generated web or code project saved from Studio.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "title": { "type": "string", "description": "Project title." },
+        "language": { "type": "string", "description": "Code language (HTML/Web, Kotlin, Python, etc.)." },
+        "prompt": { "type": "string", "description": "Prompt used to build the project." },
+        "code": { "type": "string", "description": "Generated source code." },
+        "isWebPreviewable": { "type": "boolean", "description": "Whether the code renders in WebView." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "title", "language", "prompt", "code", "isWebPreviewable", "createdAt", "updatedAt"]
+    },
+    "GitHubBookmark": {
+      "title": "GitHubBookmark",
+      "description": "Saved GitHub repository bookmark for quick AI analysis.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "fullName": { "type": "string", "description": "owner/repo full name." },
+        "description": { "type": "string", "description": "Repository summary." },
+        "language": { "type": "string", "description": "Primary repository language." },
+        "stars": { "type": "integer", "description": "Stargazers count." },
+        "htmlUrl": { "type": "string", "description": "GitHub web URL." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." }
+      },
+      "required": ["userId", "fullName", "description", "language", "stars", "htmlUrl", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile and preferences document."
+    },
+    "/users/{userId}/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "User AI conversations."
+    },
+    "/users/{userId}/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Messages belonging to a conversation."
+    },
+    "/users/{userId}/lessons/{lessonId}": {
+      "schema": { "$ref": "#/entities/CodingLesson" },
+      "description": "Interactive step-by-step programming lessons."
+    },
+    "/users/{userId}/lessons/{lessonId}/steps/{stepId}": {
+      "schema": { "$ref": "#/entities/LessonStep" },
+      "description": "Steps inside a coding lesson."
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/CodeProject" },
+      "description": "Saved Web & Code Studio artifacts."
+    },
+    "/users/{userId}/githubBookmarks/{bookmarkId}": {
+      "schema": { "$ref": "#/entities/GitHubBookmark" },
+      "description": "Bookmarked GitHub repositories."
+    }
+  }
+}

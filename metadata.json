@@ -1,0 +1,6 @@
+{
+  "name": "Karsa AI",
+  "description": "Asisten AI multibahasa untuk analisis data real-time, belajar pemrograman interaktif, pembuatan web & kode, integrasi GitHub, voice note, edit gambar AI, pencarian cerdas, dan ekspor dokumen.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
